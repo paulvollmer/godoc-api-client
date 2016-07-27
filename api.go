@@ -13,9 +13,11 @@ var ApiURL = "http://api.godoc.org"
 // ApiPackages godoc object
 type ApiPackages struct {
 	Date    time.Time
-	Results []struct {
-		Path string
-	}
+	Results []ApiPackage
+}
+
+type ApiPackage struct {
+	Path string
 }
 
 func GetPackages() (*ApiPackages, []byte, error) {
