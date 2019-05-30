@@ -2,69 +2,82 @@ package godoc
 
 import (
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
+	"github.com/golang/gddo/database"
 	"net/http"
-	"time"
 )
 
-var ApiURL = "http://api.godoc.org"
+const BaseURL = "http://api.godoc.org"
 
-// ApiPackages godoc object
-type ApiPackages struct {
-	Date    time.Time
-	Results []ApiPackage
+type API struct {
+	Client  *http.Client
+	BaseURL string
 }
 
-type ApiPackage struct {
-	Path string
+func New() *API {
+	return &API{BaseURL: BaseURL}
 }
 
-func GetPackages() (*ApiPackages, []byte, error) {
-	res, err := http.Get(ApiURL + "/packages")
+type PackagesResponse struct {
+	Results []database.Package `json:"results"`
+}
+
+type ImportsResponse struct {
+	Imports     []database.Package `json:"imports"`
+		TestImports []database.Package `json:"testImports"`
+}
+
+func (api *API) Search(q string) (*PackagesResponse, *http.Response, error) {
+	res, err := api.Client.Get(api.BaseURL + "/search?q=" + q)
 	if err != nil {
-		return &ApiPackages{}, []byte{}, err
+		return &PackagesResponse{}, res, err
 	}
-	apiJSON, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
+	defer res.Body.Close()
+	searchResponse := PackagesResponse{}
+	err = json.NewDecoder(res.Body).Decode(&searchResponse)
 	if err != nil {
-		return &ApiPackages{}, []byte{}, err
+		return &PackagesResponse{}, res, err
 	}
-	var p ApiPackages
-	err = json.Unmarshal(apiJSON, &p)
-	p.Date = time.Now()
-	return &p, apiJSON, err
+	return &searchResponse, res, nil
 }
 
-func (a *ApiPackages) TotalPackages() int {
-	return len(a.Results)
-}
-
-func (a *ApiPackages) PrettyJSON() ([]byte, error) {
-	return json.MarshalIndent(a, "", "  ")
-}
-
-func ReadFile(filename string) (*ApiPackages, error) {
-	d, err := ioutil.ReadFile(filename)
+func (api *API) Packages() (*PackagesResponse, *http.Response, error) {
+	res, err := api.Client.Get(api.BaseURL + "/packages")
 	if err != nil {
-		return &ApiPackages{}, err
+		return &PackagesResponse{}, res, err
 	}
-	var p ApiPackages
-	err = json.Unmarshal(d, &p)
-	return &p, nil
-}
-
-func (a *ApiPackages) WriteFile(s string) error {
-	d, err := a.PrettyJSON()
+	defer res.Body.Close()
+	searchResponse := PackagesResponse{}
+	err = json.NewDecoder(res.Body).Decode(&searchResponse)
 	if err != nil {
-		return err
+		return &PackagesResponse{}, res, err
 	}
-	err = ioutil.WriteFile(s, d, 0755)
-	return err
+	return &searchResponse, res, nil
 }
 
-func (a *ApiPackages) PrettyPrint() {
-	fmt.Println("URL ", ApiURL)
-	fmt.Println("DATE", a.Date)
-	fmt.Printf("total packages: %v\n", a.TotalPackages())
+func (api *API) Importers(pkg string) (*PackagesResponse, *http.Response, error) {
+	res, err := api.Client.Get(api.BaseURL + "/importers/"+pkg)
+	if err != nil {
+		return &PackagesResponse{}, res, err
+	}
+	defer res.Body.Close()
+	searchResponse := PackagesResponse{}
+	err = json.NewDecoder(res.Body).Decode(&searchResponse)
+	if err != nil {
+		return &PackagesResponse{}, res, err
+	}
+	return &searchResponse, res, nil
+}
+
+func (api *API) Imports(pkg string) (*ImportsResponse, *http.Response, error) {
+	res, err := api.Client.Get(api.BaseURL + "/imports/"+pkg)
+	if err != nil {
+		return &ImportsResponse{}, res, err
+	}
+	defer res.Body.Close()
+	importsResponse := ImportsResponse{}
+	err = json.NewDecoder(res.Body).Decode(&importsResponse)
+	if err != nil {
+		return &ImportsResponse{}, res, err
+	}
+	return &importsResponse, res, nil
 }
