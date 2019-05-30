@@ -1,4 +1,4 @@
-module github.com/paulvollmer/godoc-api
+module github.com/paulvollmer/godoc-api-client
 
 go 1.12
 
